@@ -29,7 +29,7 @@ allow_credentials_setting = True  # Por padrão, queremos permitir credenciais
 if frontend_url:
     origins = [frontend_url]
     # Adicione outras origens específicas se necessário, ex: uma URL de staging
-    # origins.append("https://sua-staging-url.com")
+    origins.append("https://bolao-bdl-2025.vercel.app/")
     allow_all_origins_for_print = False
 else:
     print("-------------------------------------------------------------------------------------------")
