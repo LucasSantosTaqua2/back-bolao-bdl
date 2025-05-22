@@ -1,110 +1,121 @@
-    # app/main.py
-
+# app/main.py
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select, text # Adicione text para consultas raw se necessário
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from app.core.database import create_db_and_tables, get_session
+from app.core.database import create_db_and_tables, get_session, engine, Base
 from app.core.config import settings
-from app.crud.user import create_user # Certifique-se que esta função faz session.add() e session.commit() ou session.flush()
+from app.crud.user import create_user, get_user_by_username
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate
 
 app = FastAPI(
-        title="Bolão Balde de Lixo API",
-        description="API para o sistema de bolão de futebol do Brasileirão.",
-        version="1.0.0",
-    )
+    title="Bolão Balde de Lixo API",
+    description="API para o sistema de bolão de futebol do Brasileirão.",
+    version="1.0.0",
+)
 
-    # --- Configuração CORS ---
-frontend_url = os.getenv("FRONTEND_URL")
-allow_credentials_setting = True
+# --- Configuração CORS ---
+frontend_url_env = os.getenv("FRONTEND_URL")
+# Para produção, FRONTEND_URL DEVE ser definida e sem barra no final.
+# Ex: https://seu-site.vercel.app
+# Para desenvolvimento local, defina no seu .env: FRONTEND_URL=http://localhost:4200
 
-if frontend_url:
-        origins = [frontend_url]
-        allow_all_origins_for_print = False
+origins_to_allow = []
+
+if frontend_url_env:
+    # Remove a barra final da URL, se houver, para consistência
+    cleaned_frontend_url = frontend_url_env.rstrip('/')
+    origins_to_allow.append(cleaned_frontend_url)
+    print(f"INFO: CORS - FRONTEND_URL definida como: {cleaned_frontend_url}")
 else:
-        print("-------------------------------------------------------------------------------------------")
-        print("AVISO DE SEGURANÇA: A variável de ambiente FRONTEND_URL não está definida!")
-        print("CORS será configurado para permitir TODAS as origens, MAS 'allow_credentials' será FALSE.")
-        print("Isso significa que a autenticação e outras funcionalidades que dependem de credenciais")
-        print("NÃO FUNCIONARÃO CORRETAMENTE até que FRONTEND_URL seja definida no seu ambiente de produção.")
-        print("Configure FRONTEND_URL no Railway com a URL do seu frontend no Vercel.")
-        print("-------------------------------------------------------------------------------------------")
-        origins = ["*"]
-        allow_credentials_setting = False
-        allow_all_origins_for_print = True
+    # Permite localhost para desenvolvimento se FRONTEND_URL não estiver definida
+    origins_to_allow.append("http://localhost:4200")
+    print("AVISO: FRONTEND_URL não definida no ambiente. CORS permitirá http://localhost:4200 por padrão.")
+    print("         Defina FRONTEND_URL para o seu ambiente de produção (ex: Railway).")
 
 app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=allow_credentials_setting,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    CORSMiddleware,
+    allow_origins=origins_to_allow,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 def on_startup():
-        print("Evento de startup: Iniciando aplicação...")
-        print("Evento de startup: Tentando criar tabelas se necessário...")
-        create_db_and_tables() # Esta função já tem seus próprios prints
-        print("Evento de startup: Verificação de tabelas (chamada a create_db_and_tables) concluída.")
+    print("INFO: Evento de startup da API iniciado.")
+    print("INFO: Tentando criar tabelas do banco de dados (se não existirem)...")
+    try:
+        from app.models.user import User # Importar modelos aqui
+        from app.models.game import Game
+        from app.models.bet import Bet
+        Base.metadata.create_all(bind=engine)
+        print("INFO: Base.metadata.create_all(engine) executado.")
+    except Exception as e_create_tables:
+        print(f"ERRO CRÍTICO: Falha ao executar create_all para tabelas: {e_create_tables}")
+        return
 
-        print("Evento de startup: Verificando se o usuário administrador padrão existe...")
-        try:
-            with next(get_session()) as session:
-                # Maneira mais explícita de verificar se há algum utilizador
-                result = session.execute(select(User.id).limit(1)).first() # Pega apenas o ID, limita a 1
-                
-                # Debug: Imprimir o que foi retornado pela consulta
-                print(f"Evento de startup: Resultado da consulta por usuário existente: {result}")
+    print("INFO: Verificando/Criando usuário administrador padrão...")
+    db_startup: Session = None
+    try:
+        db_startup = next(get_session())
+        admin_username_to_check = "ADMIN"
 
-                if result is None: # Se result for None, a tabela está vazia ou não há utilizadores
-                    print("Evento de startup: Nenhum usuário encontrado na tabela 'user'. Criando usuário administrador padrão...")
-                    
-                    admin_password = os.getenv("ADMIN_PASSWORD", "L1u1c1a1s1!@")
-                    if admin_password == "L1u1c1a1s1!@":
-                        print("AVISO DE SEGURANÇA: Usando senha padrão para o usuário admin. Configure ADMIN_PASSWORD em produção!")
+        stmt = select(User).where(User.username == admin_username_to_check)
+        existing_admin_user = db_startup.execute(stmt).scalars().first()
 
-                    admin_user_data = UserCreate(username="ADMIN", password=admin_password, role=UserRole.ADMIN)
-                    
-                    try:
-                        print(f"Evento de startup: Tentando criar usuário: {admin_user_data.username}")
-                        # Assumindo que create_user adiciona à sessão e faz commit ou flush
-                        created_admin = create_user(db=session, user_create=admin_user_data) 
-                        # Se create_user não faz commit, precisamos fazer aqui:
-                        # session.commit() # Descomente se create_user não fizer commit
-                        print(f"Evento de startup: Usuário administrador padrão '{created_admin.username}' supostamente criado com ID: {created_admin.id}.")
-                        
-                        # Verificação adicional após a tentativa de criação
-                        # admin_in_db = session.get(User, created_admin.id) # Requer que o ID seja retornado e a sessão atualizada
-                        # if admin_in_db:
-                        # print(f"Evento de startup: Confirmação - Usuário '{admin_in_db.username}' encontrado no BD após criação.")
-                        # else:
-                        # print(f"Evento de startup: ERRO - Usuário '{created_admin.username}' NÃO encontrado no BD após suposta criação.")
+        if existing_admin_user:
+            print(f"INFO: Usuário '{existing_admin_user.username}' (ID: {existing_admin_user.id}) já existe no banco de dados. Não criando novamente.")
+        else:
+            print(f"INFO: Usuário '{admin_username_to_check}' não encontrado. Tentando criar...")
+            admin_password = os.getenv("ADMIN_PASSWORD")
 
-                    except Exception as e_create:
-                        print(f"Evento de startup: ERRO ao tentar criar usuário administrador: {e_create}")
-                        session.rollback() # Reverter em caso de erro na criação
-                else:
-                    # Se result não for None, significa que a consulta retornou pelo menos uma linha (um ID)
-                    print(f"Evento de startup: Usuário(s) já existente(s) na tabela 'user' (ID encontrado: {result[0]}). Não criando admin padrão.")
-        except Exception as e_session:
-            print(f"Evento de startup: ERRO durante a obtenção da sessão ou consulta de usuário: {e_session}")
+            if not admin_password:
+                default_unsafe_password = "DefaultChangeThisPassword123!"
+                print(f"AVISO CRÍTICO: ADMIN_PASSWORD não definida no ambiente! Usando senha padrão insegura: '{default_unsafe_password}'")
+                admin_password = default_unsafe_password
+            
+            # Verificar novamente para o caso de concorrência (pouco provável no startup)
+            check_again = get_user_by_username(admin_username_to_check, db_startup)
+            if check_again:
+                print(f"INFO: Usuário ADMIN foi criado por outro processo ou já existia antes da segunda verificação. Username: {check_again.username}")
+            else:
+                admin_user_data = UserCreate(username=admin_username_to_check, password=admin_password, role=UserRole.ADMIN)
+                try:
+                    created_admin = create_user(db=db_startup, user_create=admin_user_data)
+                    print(f"INFO: Usuário administrador padrão '{created_admin.username}' CRIADO com sucesso com ID: {created_admin.id}.")
+                except Exception as e_create_admin:
+                    print(f"ERRO CRÍTICO: Falha ao tentar criar usuário administrador '{admin_username_to_check}': {e_create_admin}")
+                    db_startup.rollback()
+    except Exception as e_startup_session:
+        print(f"ERRO CRÍTICO: Falha na lógica de startup (sessão ou consulta): {e_startup_session}")
+    finally:
+        if db_startup:
+            db_startup.close()
+            print("INFO: Sessão de banco de dados do startup fechada.")
+    print("INFO: Evento de startup da API concluído.")
 
 
 @app.get("/")
 def read_root():
-        return {"message": "Bem-vindo à API do Bolão Balde de Lixo! (FastAPI + MySQL no Railway)"}
+    return {"message": "Bem-vindo à API do Bolão Balde de Lixo! (FastAPI + MySQL no Railway)"}
 
 from app.api.api_v1.api import api_router as main_api_router
 app.include_router(main_api_router, prefix="/api/v1")
 
-print(f"API pronta. Conectando ao banco: {settings.DATABASE_URL.split('@')[-1].split('/')[0] if settings.DATABASE_URL else 'DATABASE_URL NÃO DEFINIDA'}")
-if allow_all_origins_for_print:
-        print(f"CORS configurado para permitir TODAS as origens (allow_credentials={allow_credentials_setting}). É CRUCIAL definir FRONTEND_URL para produção!")
-else:
-        print(f"CORS configurado para permitir as seguintes origens: {origins} (allow_credentials={allow_credentials_setting})")
+db_url_display = "NÃO DEFINIDA OU INVÁLIDA"
+if settings.DATABASE_URL and '@' in settings.DATABASE_URL:
+    db_url_parts = settings.DATABASE_URL.split('@')
+    if len(db_url_parts) > 1:
+        host_and_db_part = db_url_parts[-1].split('/')
+        if host_and_db_part:
+            db_url_display = host_and_db_part[0]
 
-    
+print(f"INFO: API pronta. DATABASE_URL aponta para (host:port): {db_url_display}")
+# Para obter a configuração real do middleware CORS após a inicialização:
+# Iterar por app.user_middleware para encontrar o CORSMiddleware e inspecionar suas options
+# Aqui, apenas imprimimos o que pretendíamos configurar:
+print(f"INFO: Configuração CORS pretendida para origins: {origins_to_allow} com allow_credentials=True")
