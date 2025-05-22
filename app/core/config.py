@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     # Se não definida, usa o valor fornecido como fallback (idealmente, sempre defina no ambiente de produção).
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "mysql://root:kqCgYBBTkCfLhVwLhXlmIfCMMsCChCZK@gondola.proxy.rlwy.net:36663/railway"
+        "mysql+pymysql://root:kqCgYBBTkCfLhVwLhXlmIfCMMsCChCZK@gondola.proxy.rlwy.net:36663/railway"
     )
     
     # SECRET_KEY é crucial para segurança (ex: tokens JWT). DEVE ser definida no ambiente.
