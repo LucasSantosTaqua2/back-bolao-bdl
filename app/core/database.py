@@ -17,13 +17,16 @@ Base: DeclarativeMeta = declarative_base()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def create_db_and_tables():
-    """Cria todas as tabelas definidas nos seus modelos no banco de dados."""
-    # Importar os modelos aqui para garantir que Base.metadata os encontre
-    # Eles não são importados em cima para evitar circularidade
     from app.models.user import User
     from app.models.game import Game
     from app.models.bet import Bet
-    Base.metadata.create_all(engine) # Agora usa Base.metadata para criar tabelas
+
+    print("Tentando executar Base.metadata.create_all(engine)...") 
+    try:
+        Base.metadata.create_all(engine) 
+        print("Base.metadata.create_all(engine) executado com sucesso.") 
+    except Exception as e:
+        print(f"ERRO durante Base.metadata.create_all: {e}")
 
 def get_session():
     """Fornece uma sessão de banco de dados para cada requisição da API."""
