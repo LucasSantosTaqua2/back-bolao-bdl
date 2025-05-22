@@ -23,31 +23,33 @@ app = FastAPI(
 )
 
 # --- Configuração CORS ---
-# Lê a URL do frontend da variável de ambiente.
-# Se FRONTEND_URL não estiver definida, permite todas as origens (NÃO RECOMENDADO PARA PRODUÇÃO FINAL).
-# Certifique-se de definir FRONTEND_URL nas variáveis de ambiente do seu serviço no Railway.
 frontend_url = os.getenv("FRONTEND_URL")
+allow_credentials_setting = True  # Por padrão, queremos permitir credenciais
+
 if frontend_url:
-    origins = [
-        frontend_url,
-        # Adicione outras origens específicas se necessário, ex: uma URL de staging
-    ]
-    allow_all_origins = False
+    origins = [frontend_url]
+    # Adicione outras origens específicas se necessário, ex: uma URL de staging
+    # origins.append("https://sua-staging-url.com")
+    allow_all_origins_for_print = False
 else:
-    print("AVISO DE SEGURANÇA: FRONTEND_URL não definida. Permitindo todas as origens para CORS. Configure FRONTEND_URL em produção!")
-    origins = ["*"] # Fallback para permitir todas as origens se a variável não estiver definida
-    allow_all_origins = True
+    print("-------------------------------------------------------------------------------------------")
+    print("AVISO DE SEGURANÇA: A variável de ambiente FRONTEND_URL não está definida!")
+    print("CORS será configurado para permitir TODAS as origens, MAS 'allow_credentials' será FALSE.")
+    print("Isso significa que a autenticação e outras funcionalidades que dependem de credenciais")
+    print("NÃO FUNCIONARÃO CORRETAMENTE até que FRONTEND_URL seja definida no seu ambiente de produção.")
+    print("Configure FRONTEND_URL no Railway com a URL do seu frontend no Vercel.")
+    print("-------------------------------------------------------------------------------------------")
+    origins = ["*"] # Fallback para permitir todas as origens
+    allow_credentials_setting = False # Se origins é ["*"], allow_credentials DEVE ser False.
+    allow_all_origins_for_print = True
 
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins, # Usa a lista de origens definida acima
-    allow_credentials=True,
+    allow_origins=origins,
+    allow_credentials=allow_credentials_setting, # Usa a configuração ajustada
     allow_methods=["*"],
     allow_headers=["*"],
-    # Se allow_origins é ["*"], allow_credentials deve ser False,
-    # mas como podemos ter uma URL específica, mantemos True.
-    # O FastAPI/Starlette lida com isso corretamente.
 )
 
 
@@ -55,8 +57,8 @@ app.add_middleware(
 def on_startup():
     """Evento que é executado quando a aplicação inicia. Cria as tabelas do BD."""
     print("Iniciando aplicação e criando tabelas se necessário...")
-    create_db_and_tables()
-    print("Verificação de tabelas concluída.")
+    create_db_and_tables() # Esta função já tem seus próprios prints
+    # print("Verificação de tabelas concluída.") # Removido, pois create_db_and_tables já loga
 
     with next(get_session()) as session:
         existing_user = session.execute(select(User)).scalars().first()
@@ -64,9 +66,6 @@ def on_startup():
         if not existing_user:
             print("Nenhum usuário encontrado. Criando usuário administrador padrão...")
             
-            # Lê a senha do admin da variável de ambiente.
-            # Se ADMIN_PASSWORD não estiver definida, usa um valor padrão (NÃO SEGURO PARA PRODUÇÃO).
-            # Certifique-se de definir ADMIN_PASSWORD nas variáveis de ambiente do seu serviço no Railway.
             admin_password = os.getenv("ADMIN_PASSWORD", "L1u1c1a1s1!@")
             if admin_password == "L1u1c1a1s1!@":
                  print("AVISO DE SEGURANÇA: Usando senha padrão para o usuário admin. Configure ADMIN_PASSWORD em produção!")
@@ -87,9 +86,9 @@ def read_root():
 from app.api.api_v1.api import api_router as main_api_router
 app.include_router(main_api_router, prefix="/api/v1")
 
-print(f"API pronta. Conectando ao banco: {settings.DATABASE_URL.split('@')[-1].split('/')[0]}") # Mostra parte da URL do DB sem a senha
-if allow_all_origins:
-    print("CORS configurado para permitir TODAS as origens.")
+print(f"API pronta. Conectando ao banco: {settings.DATABASE_URL.split('@')[-1].split('/')[0] if settings.DATABASE_URL else 'DATABASE_URL NÃO DEFINIDA'}")
+if allow_all_origins_for_print:
+    print(f"CORS configurado para permitir TODAS as origens (allow_credentials={allow_credentials_setting}). É CRUCIAL definir FRONTEND_URL para produção!")
 else:
-    print(f"CORS configurado para permitir as seguintes origens: {origins}")
+    print(f"CORS configurado para permitir as seguintes origens: {origins} (allow_credentials={allow_credentials_setting})")
 
