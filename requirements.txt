@@ -5,8 +5,8 @@ pydantic==2.5.3
 pydantic-settings==2.0.3
 PyMySQL==1.1.1
 python-jose[cryptography]==3.3.0
-passlib==1.7.4
-bcrypt==4.1.3 
+passlib==1.7.4              # <--- ALTERADO: Removido [bcrypt]
+bcrypt==4.1.3               # <--- ADICIONADO: Versão explícita do bcrypt (pode tentar 4.0.1 se esta ainda der problemas)
 openpyxl==3.1.2
 gunicorn==22.0.0
 
