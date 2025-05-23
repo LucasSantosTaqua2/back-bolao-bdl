@@ -50,8 +50,8 @@ if TYPE_CHECKING:
     from app.models.bet import Bet # Para type hinting
 
 class UserRole(str, enum.Enum): # Usar enum.Enum padrão do Python
-    USER = "user"
-    ADMIN = "admin"
+    USER = "USER"  # <-- CORRIGIDO PARA MAIÚSCULA
+    ADMIN = "ADMIN" # <-- CORRIGIDO PARA MAIÚSCULA
 
 class User(Base):
     __tablename__ = "user"
