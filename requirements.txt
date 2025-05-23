@@ -5,6 +5,7 @@ pydantic==2.5.3             # Versão específica do Pydantic v2
 pydantic-settings==2.0.3    # Versão específica de pydantic-settings compatível com Pydantic 2.5.3
 PyMySQL==1.1.1              # Driver MySQL (PyMySQL, mais fácil de instalar)
 python-jose[cryptography]==3.3.0 # Para JWT
+bcrypt==4.1.3
 passlib[bcrypt]==1.7.4      # Para hashing de senhas
 openpyxl==3.1.2             # Para trabalhar com arquivos Excel (se ainda usar)
 gunicorn==22.0.0
