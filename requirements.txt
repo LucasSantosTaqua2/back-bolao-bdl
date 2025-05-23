@@ -1,15 +1,15 @@
 # requirements.txt
-fastapi==0.111.0             # Ou a sua versão do FastAPI
-uvicorn[standard]==0.30.1   # Ou a sua versão do Uvicorn
-sqlalchemy==2.0.30          # Ou a sua versão do SQLAlchemy
-pydantic==2.5.3             # Ou a sua versão do Pydantic
-pydantic-settings==2.0.3    # Ou a sua versão
-PyMySQL==1.1.1              
-python-jose[cryptography]==3.3.0
-passlib==1.7.4              # <--- IMPORTANTE: Sem [bcrypt] aqui
-bcrypt==4.1.3               # <--- ADICIONADO: Versão explícita e estável do bcrypt (pode tentar 4.0.1 se esta falhar)
-openpyxl==3.1.2             
-gunicorn==22.0.0            
+fastapi             # Ou a sua versão do FastAPI
+uvicorn[standard]  # Ou a sua versão do Uvicorn
+sqlalchemy          # Ou a sua versão do SQLAlchemy
+pydantic            # Ou a sua versão do Pydantic
+pydantic-setting    # Ou a sua versão
+PyMySQL              
+python-jose[cryptography]
+passlib            # <--- IMPORTANTE: Sem [bcrypt] aqui
+bcrypt             # <--- ADICIONADO: Versão explícita e estável do bcrypt (pode tentar 4.0.1 se esta falhar)
+openpyxl            
+gunicorn            
 
 
 
