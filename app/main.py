@@ -5,8 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-# CORRIGIDO: Importar Base e garantir que engine está correto.
-# create_db_and_tables não é mais chamada diretamente aqui se Base.metadata.create_all é usado.
+# Importações Corrigidas:
 from app.core.database import get_session, engine, Base
 from app.core.config import settings
 from app.crud.user import create_user, get_user_by_username
@@ -21,35 +20,28 @@ app = FastAPI(
 
 # --- Configuração CORS ---
 frontend_url_env = os.getenv("FRONTEND_URL")
-# Para produção, FRONTEND_URL DEVE ser definida e sem barra no final.
-# Ex: [https://seu-site.vercel.app](https://seu-site.vercel.app)
-# Para desenvolvimento local, defina no seu .env: FRONTEND_URL=http://localhost:4200
-
 origins_to_allow = []
 cors_print_message_main = ""
-# allow_credentials_is_true é assumido como True para a configuração abaixo
-cors_print_message_suffix = "(allow_credentials=True)"
+cors_print_message_suffix = "(allow_credentials=True)" # Definido com base na configuração abaixo
 
 
 if frontend_url_env:
-    # Remove a barra final da URL, se houver, para consistência
     cleaned_frontend_url = frontend_url_env.rstrip('/')
-    if cleaned_frontend_url: # Adiciona apenas se não for uma string vazia após rstrip
+    if cleaned_frontend_url: 
         origins_to_allow.append(cleaned_frontend_url)
         cors_print_message_main = f"INFO: CORS - FRONTEND_URL definida. Origins permitidas: {origins_to_allow}"
-    else: # Caso FRONTEND_URL seja apenas "/" ou vazia
-        origins_to_allow.append("http://localhost:4200") # Fallback seguro
-        cors_print_message_main = "AVISO: FRONTEND_URL definida mas resultou em string vazia após limpeza. CORS permitirá http://localhost:4200. Verifique FRONTEND_URL."
+    else: 
+        origins_to_allow.append("http://localhost:4200") 
+        cors_print_message_main = "AVISO: FRONTEND_URL definida mas resultou em string vazia. CORS permitirá http://localhost:4200. Verifique FRONTEND_URL."
 
 else:
-    # Permite localhost para desenvolvimento se FRONTEND_URL não estiver definida
     origins_to_allow.append("http://localhost:4200")
     cors_print_message_main = "AVISO: FRONTEND_URL não definida no ambiente. CORS permitirá http://localhost:4200 por padrão."
     print("         Defina FRONTEND_URL para o seu ambiente de produção (ex: Railway).")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins_to_allow,
+    allow_origins=origins_to_allow, 
     allow_credentials=True, 
     allow_methods=["*"], 
     allow_headers=["*"], 
@@ -60,12 +52,10 @@ def on_startup():
     print("INFO: Evento de startup da API iniciado.")
     print("INFO: Tentando criar tabelas do banco de dados (se não existirem)...")
     try:
-        # Importar todos os modelos garante que eles estão registados com Base.metadata
-        # ANTES de chamar create_all.
-        from app.models.user import User # Assegure-se que UserRole é importado aqui ou no escopo global se usado
+        from app.models.user import User 
         from app.models.game import Game
         from app.models.bet import Bet
-        Base.metadata.create_all(bind=engine) # Usa a Base e engine importados
+        Base.metadata.create_all(bind=engine) 
         print("INFO: Base.metadata.create_all(engine) executado.")
     except Exception as e_create_tables:
         print(f"ERRO CRÍTICO: Falha ao executar create_all para tabelas: {e_create_tables}")
