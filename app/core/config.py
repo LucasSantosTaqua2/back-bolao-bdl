@@ -6,10 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     # Carrega DATABASE_URL da variável de ambiente.
     # Se não definida, usa o valor fornecido como fallback (idealmente, sempre defina no ambiente de produção).
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL",
-        "mysql+pymysql://root:kqCgYBBTkCfLhVwLhXlmIfCMMsCChCZK@gondola.proxy.rlwy.net:36663/railway"
-    )
+    DATABASE_URL: str = os.getenv("DATABASE_URL")
     
     # SECRET_KEY é crucial para segurança (ex: tokens JWT). DEVE ser definida no ambiente.
     SECRET_KEY: str 
