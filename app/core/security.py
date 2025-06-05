@@ -6,30 +6,25 @@ from jose import JWTError, jwt
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session # Use Session do SQLAlchemy ORM
-from sqlalchemy import select # Use select do SQLAlchemy principal
+from sqlalchemy.orm import Session 
+from sqlalchemy import select 
 
-from app.core.database import get_session # Importe sua função para obter a sessão do DB
-from app.models.user import User, UserRole # Importe User e UserRole (UserRole para get_current_active_admin)
+from app.core.database import get_session 
+from app.models.user import User, UserRole 
 
 from app.core.config import settings
 
-# Configuração para hashing de senhas
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Esquema de segurança OAuth2 para obter o token do cabeçalho
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/users/token") # Ajuste tokenUrl se necessário
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/users/token")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifica se uma senha em texto puro corresponde a uma senha hash."""
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
-    """Gera o hash de uma senha em texto puro."""
     return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """Cria um token de acesso JWT."""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -39,17 +34,13 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
-# Classe auxiliar para as credenciais do token que será retornado no login
-# Token é um esquema Pydantic puro, então BaseModel é usado.
 from pydantic import BaseModel
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-# Classe para os dados que esperamos encontrar DENTRO do token (o payload)
 class TokenData(BaseModel):
     username: Optional[str] = None
-    # role: Optional[str] = None
 
 
 # *** ORDEM CRÍTICA DAS FUNÇÕES DE DEPENDÊNCIA ***
@@ -83,23 +74,16 @@ async def get_current_user(
 
 # 2. get_current_active_user: Depende de get_current_user e verifica se o usuário está ativo.
 async def get_current_active_user(
-    current_user: User = Depends(get_current_user) # Usa get_current_user (definido acima)
+    current_user: User = Depends(get_current_user)
 ) -> User:
-    """
-    Retorna o usuário logado e verifica se ele está ativo.
-    """
-    if not current_user.is_active: # Assumindo que seu modelo User tem um campo 'is_active'
+    if not current_user.is_active: 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Usuário inativo")
     return current_user
 
 # 3. get_current_active_admin: Depende de get_current_active_user e verifica se é admin.
 async def get_current_active_admin(
-    current_user: User = Depends(get_current_active_user) # Usa get_current_active_user (definido acima)
+    current_user: User = Depends(get_current_active_user)
 ) -> User:
-    """
-    Retorna o usuário logado e ativo, verificando se ele tem a role de 'admin'.
-    """
-    # UserRole já está importado no topo do arquivo
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Não autorizado: Requer privilégios de administrador")
     return current_user
