@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str 
     
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 horas
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES") # 24 horas
 
     # Configurações para carregar variáveis de ambiente.
     # Pydantic-settings tentará carregar de um arquivo .env se existir,
